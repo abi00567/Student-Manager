@@ -5,11 +5,7 @@ import psycopg2
 
 def get_db_connection():
     return psycopg2.connect(
-        host=os.getenv("DB_HOST", "db"),
-        port=os.getenv("DB_PORT", "5432"),
-        database=os.getenv("DB_NAME", "studentdb"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "postgres")
+        os.getenv("DATABASE_URL")
     )
 
 
@@ -37,6 +33,7 @@ def init_db():
 
         except Exception as e:
             print(f"Database not ready. Attempt {attempt + 1}/10")
+            print(e)
             time.sleep(3)
 
     raise Exception("Could not connect to PostgreSQL.")
