@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from db import get_db_connection, init_db
+from app.db import get_db_connection, init_db
 
 app = Flask(__name__)
 
