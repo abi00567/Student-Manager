@@ -28,6 +28,12 @@
             </div>
             {% endif %}
 
+            {% if reg_success %}
+            <div class="login-success">
+                <span>✅</span> {{ reg_success }}
+            </div>
+            {% endif %}
+
             <form method="POST" class="login-form">
 
                 <div class="login-field">

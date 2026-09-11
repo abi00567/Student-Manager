@@ -114,13 +114,16 @@ def login():
 
             if row and check_password_hash(row[0], password):
                 session["username"] = username
+                session.pop("reg_success", None)
                 return redirect(url_for("index"))
             else:
                 error = "Invalid username or password. Please try again."
         except Exception as e:
             error = f"Database error: {e}"
 
-    return render_template("login.html", error=error)
+    # Pick up registration success message (one-time)
+    reg_success = session.pop("reg_success", None)
+    return render_template("login.html", error=error, reg_success=reg_success)
 
 
 @app.route("/logout")
@@ -162,13 +165,17 @@ def register():
                         (username, generate_password_hash(password))
                     )
                     conn.commit()
-                    success = f"Account created successfully! You can now sign in."
+                    cur.close()
+                    conn.close()
+                    # Redirect to login with a success message via session
+                    session["reg_success"] = f"Account '{username}' created! You can now sign in."
+                    return redirect(url_for("login"))
                 cur.close()
                 conn.close()
             except Exception as e:
                 error = f"Database error: {e}"
 
-    return render_template("register.html", error=error, success=success)
+    return render_template("register.html", error=error, success=None)
 
 
 @app.route("/forgot-password", methods=["GET", "POST"])
