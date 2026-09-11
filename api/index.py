@@ -1,9 +1,147 @@
 import os
-import sys
+import psycopg2
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
-# Add project root to sys.path so 'app' package can be imported
-root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
+# ----------- Flask App Setup -----------
 
-from app.app import app
+# Resolve templates and static dirs relative to this file's location
+_base = os.path.dirname(os.path.abspath(__file__))
+_templates = os.path.join(_base, "..", "app", "templates")
+_static = os.path.join(_base, "..", "app", "static")
+
+app = Flask(__name__,
+            template_folder=os.path.abspath(_templates),
+            static_folder=os.path.abspath(_static))
+
+# ----------- Database Helpers -----------
+
+_db_initialized = False
+
+
+def _get_db():
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        return psycopg2.connect(db_url, connect_timeout=5)
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        database=os.getenv("DB_NAME", "studentdb"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "postgres123"),
+        connect_timeout=5
+    )
+
+
+def _ensure_table():
+    global _db_initialized
+    if _db_initialized:
+        return
+    conn = _get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS students (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            email VARCHAR(150) UNIQUE NOT NULL,
+            course VARCHAR(100) NOT NULL
+        )
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+    _db_initialized = True
+
+
+# ----------- Routes -----------
+
+@app.route("/")
+def index():
+    students = []
+    db_error = None
+    try:
+        _ensure_table()
+        conn = _get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM students ORDER BY id")
+        students = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("DB error:", e)
+        db_error = str(e)
+    return render_template("index.html", students=students, db_error=db_error)
+
+
+@app.route("/add", methods=["GET", "POST"])
+def add_student():
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        course = request.form.get("course")
+        try:
+            _ensure_table()
+            conn = _get_db()
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO students (name, email, course) VALUES (%s, %s, %s)",
+                (name, email, course)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            return redirect(url_for("index"))
+        except Exception as e:
+            return f"Error adding student: {e}", 500
+    return render_template("form.html", student=None)
+
+
+@app.route("/edit/<int:id>", methods=["GET", "POST"])
+def edit_student(id):
+    try:
+        _ensure_table()
+        conn = _get_db()
+        cur = conn.cursor()
+        if request.method == "POST":
+            name = request.form.get("name")
+            email = request.form.get("email")
+            course = request.form.get("course")
+            cur.execute(
+                "UPDATE students SET name=%s, email=%s, course=%s WHERE id=%s",
+                (name, email, course, id)
+            )
+            conn.commit()
+            cur.close()
+            conn.close()
+            return redirect(url_for("index"))
+        cur.execute("SELECT * FROM students WHERE id = %s", (id,))
+        student = cur.fetchone()
+        cur.close()
+        conn.close()
+        if not student:
+            return "Student not found", 404
+        return render_template("form.html", student=student)
+    except Exception as e:
+        return f"Error: {e}", 500
+
+
+@app.route("/delete/<int:id>", methods=["DELETE"])
+def delete_student(id):
+    try:
+        _ensure_table()
+        conn = _get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM students WHERE id = %s", (id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ----------- Local dev entrypoint -----------
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
