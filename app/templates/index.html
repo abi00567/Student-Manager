@@ -14,6 +14,18 @@
 
         <h1>Student Record Manager</h1>
 
+        {% if db_error %}
+        <div style="background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; line-height: 1.5;">
+            <strong>⚠️ Database Connection Error:</strong>
+            <div style="margin-top: 5px; font-family: monospace; font-size: 12px; background: #fee2e2; padding: 6px 10px; border-radius: 4px; word-break: break-all;">
+                {{ db_error }}
+            </div>
+            <div style="margin-top: 8px; font-size: 13px;">
+                <strong>How to fix on Vercel:</strong> Vercel is hosted in the cloud and cannot connect to <code>localhost</code> or local Docker. Add your cloud PostgreSQL connection string in <strong>Vercel Dashboard &gt; Project &gt; Settings &gt; Environment Variables</strong> as <code>DATABASE_URL</code> (for example, a free PostgreSQL database from <a href="https://neon.tech" target="_blank" style="color: #2563eb; text-decoration: underline;">Neon.tech</a> or <a href="https://supabase.com" target="_blank" style="color: #2563eb; text-decoration: underline;">Supabase</a>).
+            </div>
+        </div>
+        {% endif %}
+
         <a href="{{ url_for('add_student') }}" class="add-btn">
             + Add Student
         </a>
