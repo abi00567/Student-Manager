@@ -14,8 +14,6 @@ app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 
 @app.route("/")
-@app.route("/api")
-@app.route("/api/index")
 def index():
     students = []
     db_error = None
@@ -36,7 +34,6 @@ def index():
 
 
 @app.route("/add", methods=["GET", "POST"])
-@app.route("/api/add", methods=["GET", "POST"])
 def add_student():
     if request.method == "POST":
         name = request.form.get("name")
@@ -64,7 +61,6 @@ def add_student():
 
 
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
-@app.route("/api/edit/<int:id>", methods=["GET", "POST"])
 def edit_student(id):
     try:
         ensure_db_initialized()
@@ -106,7 +102,6 @@ def edit_student(id):
 
 
 @app.route("/delete/<int:id>", methods=["DELETE"])
-@app.route("/api/delete/<int:id>", methods=["DELETE"])
 def delete_student(id):
     try:
         ensure_db_initialized()
