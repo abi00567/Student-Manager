@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings – Student Record Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="page-header">
+        <h1>⚙️ Settings</h1>
+        <div class="user-info">
+            <a href="{{ url_for('index') }}" class="back-btn">← Dashboard</a>
+            <span class="user-badge">👤 {{ username }}</span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <!-- Alert -->
+    {% if error %}
+    <div class="db-error-banner">⚠️ {{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="success-banner">✅ {{ success }}</div>
+    {% endif %}
+
+    <div class="settings-grid">
+
+        <!-- Account Info Card -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <span class="settings-icon">👤</span>
+                <div>
+                    <h2>Account Info</h2>
+                    <p>Your account overview</p>
+                </div>
+            </div>
+            <div class="account-stat-row">
+                <div class="account-stat">
+                    <div class="account-stat-label">Username</div>
+                    <div class="account-stat-value">{{ username }}</div>
+                </div>
+                <div class="account-stat">
+                    <div class="account-stat-label">Total Students</div>
+                    <div class="account-stat-value highlight">{{ total_students }}</div>
+                </div>
+                <div class="account-stat">
+                    <div class="account-stat-label">Total Users</div>
+                    <div class="account-stat-value">{{ total_users }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password Card -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <span class="settings-icon">🔒</span>
+                <div>
+                    <h2>Change Password</h2>
+                    <p>Update your account password</p>
+                </div>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_password">
+                <div class="settings-field">
+                    <label>Current Password</label>
+                    <input type="password" name="current_password" placeholder="Enter current password" required>
+                </div>
+                <div class="settings-field">
+                    <label>New Password</label>
+                    <input type="password" name="new_password" placeholder="Enter new password (min 6 chars)" required minlength="6">
+                </div>
+                <div class="settings-field">
+                    <label>Confirm New Password</label>
+                    <input type="password" name="confirm_password" placeholder="Re-enter new password" required minlength="6">
+                </div>
+                <button type="submit" class="settings-save-btn">Update Password</button>
+            </form>
+        </div>
+
+        <!-- Change Username Card -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <span class="settings-icon">✏️</span>
+                <div>
+                    <h2>Change Username</h2>
+                    <p>Update your display name</p>
+                </div>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_username">
+                <div class="settings-field">
+                    <label>New Username</label>
+                    <input type="text" name="new_username" placeholder="Enter new username (min 3 chars)" required minlength="3">
+                </div>
+                <div class="settings-field">
+                    <label>Confirm with Password</label>
+                    <input type="password" name="current_password_u" placeholder="Enter current password" required>
+                </div>
+                <button type="submit" class="settings-save-btn">Update Username</button>
+            </form>
+        </div>
+
+        <!-- Quick Links Card -->
+        <div class="settings-card">
+            <div class="settings-card-header">
+                <span class="settings-icon">🔗</span>
+                <div>
+                    <h2>Quick Actions</h2>
+                    <p>Navigate the app</p>
+                </div>
+            </div>
+            <div class="quick-links">
+                <a href="{{ url_for('index') }}" class="quick-link-btn">
+                    <span>📋</span> View All Students
+                </a>
+                <a href="{{ url_for('add_student') }}" class="quick-link-btn">
+                    <span>➕</span> Add New Student
+                </a>
+                <a href="{{ url_for('logout') }}" class="quick-link-btn danger">
+                    <span>🚪</span> Logout
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>

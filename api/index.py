@@ -171,6 +171,71 @@ def register():
     return render_template("register.html", error=error, success=success)
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if "username" in session:
+        return redirect(url_for("index"))
+
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        try:
+            _ensure_tables()
+            conn = _get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                # Store verified username in session so reset page is accessible
+                session["reset_user"] = username
+                return redirect(url_for("reset_password"))
+            else:
+                error = "No account found with that username."
+        except Exception as e:
+            error = f"Database error: {e}"
+
+    return render_template("forgot_password.html", error=error)
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    username = session.get("reset_user")
+    if not username:
+        return redirect(url_for("forgot_password"))
+
+    error = None
+    success = None
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        else:
+            try:
+                _ensure_tables()
+                conn = _get_db()
+                cur = conn.cursor()
+                cur.execute(
+                    "UPDATE users SET password_hash = %s WHERE username = %s",
+                    (generate_password_hash(password), username)
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+                session.pop("reset_user", None)
+                success = "Password reset successfully! You can now sign in."
+            except Exception as e:
+                error = f"Database error: {e}"
+
+    return render_template("reset_password.html", username=username, error=error, success=success)
+
+
 # ----------- Student Routes (Protected) -----------
 
 @app.route("/")
@@ -260,6 +325,107 @@ def delete_student(id):
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    username = session.get("username")
+    error = None
+    success = None
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "change_password":
+            current_pw = request.form.get("current_password", "")
+            new_pw = request.form.get("new_password", "")
+            confirm_pw = request.form.get("confirm_password", "")
+
+            try:
+                _ensure_tables()
+                conn = _get_db()
+                cur = conn.cursor()
+                cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+                row = cur.fetchone()
+
+                if not row or not check_password_hash(row[0], current_pw):
+                    error = "Current password is incorrect."
+                elif len(new_pw) < 6:
+                    error = "New password must be at least 6 characters."
+                elif new_pw != confirm_pw:
+                    error = "New passwords do not match."
+                else:
+                    cur.execute(
+                        "UPDATE users SET password_hash = %s WHERE username = %s",
+                        (generate_password_hash(new_pw), username)
+                    )
+                    conn.commit()
+                    success = "Password changed successfully!"
+
+                cur.close()
+                conn.close()
+            except Exception as e:
+                error = f"Database error: {e}"
+
+        elif action == "change_username":
+            new_username = request.form.get("new_username", "").strip()
+            current_pw = request.form.get("current_password_u", "")
+
+            if len(new_username) < 3:
+                error = "Username must be at least 3 characters."
+            else:
+                try:
+                    _ensure_tables()
+                    conn = _get_db()
+                    cur = conn.cursor()
+                    cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+                    row = cur.fetchone()
+
+                    if not row or not check_password_hash(row[0], current_pw):
+                        error = "Current password is incorrect."
+                    else:
+                        cur.execute("SELECT id FROM users WHERE username = %s", (new_username,))
+                        if cur.fetchone():
+                            error = "That username is already taken."
+                        else:
+                            cur.execute(
+                                "UPDATE users SET username = %s WHERE username = %s",
+                                (new_username, username)
+                            )
+                            conn.commit()
+                            session["username"] = new_username
+                            username = new_username
+                            success = "Username changed successfully!"
+
+                    cur.close()
+                    conn.close()
+                except Exception as e:
+                    error = f"Database error: {e}"
+
+    # Fetch total student count for display
+    total_students = 0
+    try:
+        _ensure_tables()
+        conn = _get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM students")
+        total_students = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM users")
+        total_users = cur.fetchone()[0]
+        cur.close()
+        conn.close()
+    except Exception:
+        total_users = 0
+
+    return render_template(
+        "settings.html",
+        username=session.get("username"),
+        error=error,
+        success=success,
+        total_students=total_students,
+        total_users=total_users
+    )
 
 
 # ----------- Local dev entry -----------

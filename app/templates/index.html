@@ -19,6 +19,7 @@
             <h1>🎓 Student Record Manager</h1>
             <div class="user-info">
                 <span class="user-badge">👤 {{ session['username'] }}</span>
+                <a href="{{ url_for('settings') }}" class="settings-link-btn">⚙️ Settings</a>
                 <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
             </div>
         </div>
