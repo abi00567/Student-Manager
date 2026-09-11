@@ -117,6 +117,48 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if "username" in session:
+        return redirect(url_for("index"))
+
+    error = None
+    success = None
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm_password", "")
+
+        if len(username) < 3:
+            error = "Username must be at least 3 characters."
+        elif len(password) < 6:
+            error = "Password must be at least 6 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        else:
+            try:
+                ensure_db_initialized()
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+                if cur.fetchone():
+                    error = "Username already exists. Please choose another."
+                else:
+                    cur.execute(
+                        "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                        (username, generate_password_hash(password))
+                    )
+                    conn.commit()
+                    success = "Account created successfully! You can now sign in."
+                cur.close()
+                conn.close()
+            except Exception as e:
+                error = f"Database error: {e}"
+
+    return render_template("register.html", error=error, success=success)
+
+
 # ----------- Student Routes (Protected) -----------
 
 @app.route("/")
