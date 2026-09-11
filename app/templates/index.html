@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Record Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -12,16 +15,21 @@
 
     <div class="container">
 
-        <h1>Student Record Manager</h1>
+        <div class="page-header">
+            <h1>🎓 Student Record Manager</h1>
+            <div class="user-info">
+                <span class="user-badge">👤 {{ session['username'] }}</span>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+            </div>
+        </div>
 
         {% if db_error %}
-        <div style="background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; line-height: 1.5;">
+        <div class="db-error-banner">
             <strong>⚠️ Database Connection Error:</strong>
-            <div style="margin-top: 5px; font-family: monospace; font-size: 12px; background: #fee2e2; padding: 6px 10px; border-radius: 4px; word-break: break-all;">
-                {{ db_error }}
-            </div>
-            <div style="margin-top: 8px; font-size: 13px;">
-                <strong>How to fix on Vercel:</strong> Vercel is hosted in the cloud and cannot connect to <code>localhost</code> or local Docker. Add your cloud PostgreSQL connection string in <strong>Vercel Dashboard &gt; Project &gt; Settings &gt; Environment Variables</strong> as <code>DATABASE_URL</code> (for example, a free PostgreSQL database from <a href="https://neon.tech" target="_blank" style="color: #2563eb; text-decoration: underline;">Neon.tech</a> or <a href="https://supabase.com" target="_blank" style="color: #2563eb; text-decoration: underline;">Supabase</a>).
+            <div class="db-error-msg">{{ db_error }}</div>
+            <div class="db-error-hint">
+                Add your <strong>DATABASE_URL</strong> in Vercel Dashboard → Settings → Environment Variables
+                (e.g., free PostgreSQL from <a href="https://neon.tech" target="_blank">Neon.tech</a>).
             </div>
         </div>
         {% endif %}
@@ -49,22 +57,16 @@
                     <td>{{ student[2] }}</td>
                     <td>{{ student[3] }}</td>
                     <td>
-                        <a href="{{ url_for('edit_student', id=student[0]) }}" class="edit-btn">
-                            Edit
-                        </a>
-
-                        <button class="delete-btn" data-id="{{ student[0] }}">
-                            Delete
-                        </button>
+                        <a href="{{ url_for('edit_student', id=student[0]) }}" class="edit-btn">Edit</a>
+                        <button class="delete-btn" data-id="{{ student[0] }}">Delete</button>
                     </td>
                 </tr>
-
                 {% else %}
-
                 <tr>
-                    <td colspan="5">No students found.</td>
+                    <td colspan="5" style="text-align:center; color: #888; padding: 30px;">
+                        No students found. Click "+ Add Student" to get started.
+                    </td>
                 </tr>
-
                 {% endfor %}
             </tbody>
         </table>

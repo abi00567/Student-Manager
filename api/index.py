@@ -1,10 +1,11 @@
 import os
 import psycopg2
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+import functools
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # ----------- Flask App Setup -----------
 
-# Resolve templates and static dirs relative to this file's location
 _base = os.path.dirname(os.path.abspath(__file__))
 _templates = os.path.join(_base, "..", "app", "templates")
 _static = os.path.join(_base, "..", "app", "static")
@@ -13,7 +14,9 @@ app = Flask(__name__,
             template_folder=os.path.abspath(_templates),
             static_folder=os.path.abspath(_static))
 
-# ----------- Database Helpers -----------
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-please-change-in-production")
+
+# ----------- Database -----------
 
 _db_initialized = False
 
@@ -34,12 +37,14 @@ def _get_db():
     )
 
 
-def _ensure_table():
+def _ensure_tables():
     global _db_initialized
     if _db_initialized:
         return
     conn = _get_db()
     cur = conn.cursor()
+
+    # Students table
     cur.execute("""
         CREATE TABLE IF NOT EXISTS students (
             id SERIAL PRIMARY KEY,
@@ -48,20 +53,91 @@ def _ensure_table():
             course VARCHAR(100) NOT NULL
         )
     """)
+
+    # Users table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(80) UNIQUE NOT NULL,
+            password_hash VARCHAR(256) NOT NULL
+        )
+    """)
+
+    # Seed default admin user if none exist
+    cur.execute("SELECT COUNT(*) FROM users")
+    count = cur.fetchone()[0]
+    if count == 0:
+        admin_user = os.getenv("ADMIN_USERNAME", "admin")
+        admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
+        cur.execute(
+            "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+            (admin_user, generate_password_hash(admin_pass))
+        )
+
     conn.commit()
     cur.close()
     conn.close()
     _db_initialized = True
 
 
-# ----------- Routes -----------
+# ----------- Auth Decorator -----------
+
+def login_required(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if "username" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ----------- Auth Routes -----------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if "username" in session:
+        return redirect(url_for("index"))
+
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        try:
+            _ensure_tables()
+            conn = _get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+
+            if row and check_password_hash(row[0], password):
+                session["username"] = username
+                return redirect(url_for("index"))
+            else:
+                error = "Invalid username or password. Please try again."
+        except Exception as e:
+            error = f"Database error: {e}"
+
+    return render_template("login.html", error=error)
+
+
+@app.route("/logout")
+def logout():
+    session.pop("username", None)
+    return redirect(url_for("login"))
+
+
+# ----------- Student Routes (Protected) -----------
 
 @app.route("/")
+@login_required
 def index():
     students = []
     db_error = None
     try:
-        _ensure_table()
+        _ensure_tables()
         conn = _get_db()
         cur = conn.cursor()
         cur.execute("SELECT * FROM students ORDER BY id")
@@ -75,13 +151,14 @@ def index():
 
 
 @app.route("/add", methods=["GET", "POST"])
+@login_required
 def add_student():
     if request.method == "POST":
         name = request.form.get("name")
         email = request.form.get("email")
         course = request.form.get("course")
         try:
-            _ensure_table()
+            _ensure_tables()
             conn = _get_db()
             cur = conn.cursor()
             cur.execute(
@@ -98,9 +175,10 @@ def add_student():
 
 
 @app.route("/edit/<int:id>", methods=["GET", "POST"])
+@login_required
 def edit_student(id):
     try:
-        _ensure_table()
+        _ensure_tables()
         conn = _get_db()
         cur = conn.cursor()
         if request.method == "POST":
@@ -127,9 +205,10 @@ def edit_student(id):
 
 
 @app.route("/delete/<int:id>", methods=["DELETE"])
+@login_required
 def delete_student(id):
     try:
-        _ensure_table()
+        _ensure_tables()
         conn = _get_db()
         cur = conn.cursor()
         cur.execute("DELETE FROM students WHERE id = %s", (id,))
@@ -141,7 +220,7 @@ def delete_student(id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ----------- Local dev entrypoint -----------
+# ----------- Local dev entry -----------
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
