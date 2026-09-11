@@ -1,0 +1,26 @@
+- name: Setup Student Manager prerequisites
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+
+    - name: Check WSL
+      ansible.builtin.command: wsl.exe --status
+      register: wsl_status
+      changed_when: false
+      failed_when: false
+
+    - name: Check Docker
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: false
+
+    - name: Show prerequisite status
+      ansible.builtin.debug:
+        msg:
+          - "WSL check completed"
+          - "Docker check completed"
+          - "WSL output: {{ wsl_status.stdout | default('Not available') }}"
+          - "Docker output: {{ docker_version.stdout | default('Not available') }}"
